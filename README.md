@@ -12,7 +12,11 @@ or
 makedocs.sh --saitolite=/path/to/your/saito-lite-repo
 ```
 
-This will rebuild the content in web/
+This will rebuild the content in web/.
+
+In the future this will cover our other repos as well.
+
+## Contact
 
 To connect to the Saito Team please contact us at:
 
