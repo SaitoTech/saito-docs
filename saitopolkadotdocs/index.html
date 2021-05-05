@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Home</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Home</h1>
+
+    
+
+
+
+    
+
+
+    <h3> </h3>
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+    <section>
+        <article><h1>Polkadot Integration</h1>
+<h2>Introduction</h2>
+<p>In order to facilitate integration with DOT and other Substrate-based tokens within the Polkadot ecosystem, Saito will be developing a prototype of an Open Infrastructure-type Decentralized Service which is enabled by Saito's ability to serve as an Open PKI Infrastructure and Transport Layer.</p>
+<p>The Saito Lite Client facilitates interoperability with any cryptocurrency by implementing a subclass of Modtemplate(i.e. a Module) called <a href="https://saito.io/docs/polkadot/AbstractCryptoModule.html">AbstractCryptoModule</a>(see <a href="https://github.com/SaitoTech/saito-lite/blob/master/docs/applications.md">Applications</a> for more details on the Modules system). By implementing an AbstractCryptoModule a DAPP author can enable their Module to be selected as the user's Preferred Cryptocurrency within the Lite Client and allow other DAPPs, such as games, to interact with a cryptocurrency through the AbstractCryptoModule interface.</p>
+<p>The functions provided by the <a href="https://saito.io/docs/polkadot/Wallet.html">Lite Client's Wallet API</a> will honor the user's Preferred Cryptocurrency, allowing a Saito DAPP to seamlessly change from one cryptocurrency to another.</p>
+<p>This functionality represents the work described in <a href="https://github.com/w3f/Open-Grants-Program/blob/master/applications/saito-game-protocol-and-engine.md">Milestone 1 of our Web3 Foundation grant</a>.</p>
+<p>If a DAPP author also wishes to leverage Saito as an Open Infrastructure platform as well, all interactions with the cryptocurrency can be passed through Saito Transactions. This enables efficient distribution of the transactions to their endpoint services within the Saito Network and also allows the author to receive payment for access to the endpoints by requiring a micro-payment in Saito.</p>
+<p>The first milestone to support this type of Service Infrastructure is an API to support interoperability between Saito and the 3rd party cryptocurrencies. This is equivalent to <a href="https://github.com/w3f/Open-Grants-Program/blob/master/applications/saito-game-protocol-and-engine.md">the grant we have been awarded by the Web 3 Foundation</a>, which is in a prototypal stage now.</p>
+<p>If there is further interest in leveraging this system we also plan to extend the APIs further to better support an Open Infrastructure Service. For now, that work is left to the DAPP author and we encourage anyone interested in this to reach out.</p>
+<h2>Architecture</h2>
+<p>For details of the architecture, see our <a href="https://github.com/SaitoTech/saito-lite/blob/master/docs/saito-dot-integration.pdf">architecture document</a>.</p>
+<h2>Potential Future Grant Work</h2>
+<p>For anyone who wishes to leverage Saito as an Open Infrastructure platform, the previous work does not fully support this. We would suggest that implementing an API similar to the following might be a good starting point:</p>
+<h3>SaitoAbstractEndpoint</h3>
+<p><strong>Call(methodName, callback, payload):</strong></p>
+<p>Returns a promise which will resolve with the response.(i.e. is an async function).</p>
+<p>Wraps a request to an endpoint. This can simply hit an endpoint directly, but will often wrap the request into a Saito Transaction to leverage Saito Open Infrastructure.</p>
+<p>For example, a Saito Endpoint might implement calls like these:</p>
+<pre class="prettyprint source"><code>Call(“GetBalance”, pubkey, callback)
+Call(“BuildSignable”, {rawdata: ...}, callback)
+Call(“BuildSignableBasicTx”, {to: …, amount: ...}, callback)
+Call(“BroadcastTransaction”, {rawtx: …}, callback);
+</code></pre>
+<p>The Callable method names are at the discretion of the Saito Endpoint author and can wrap multiple calls to an endpoint. For example, to build a basic transfer transaction a Saito Endpoint Module may need to get both the balance and nonce for the sender, which may represent multiple calls to the actual endpoint.</p>
+<p>An ETH-based SaitoEndpoint wrapping ETH might something like this:
+Call(“eth_sendTransaction”,...”)
+And
+Call(“eth_getBalance”, …)
+for consistency with the ETH ecosystem.</p>
+<p><strong>CallStream(methodName, payload):</strong></p>
+<p>Returns an Stream Object(<a href="https://www.npmjs.com/package/stream">https://www.npmjs.com/package/stream</a>, <a href="https://nodejs.org/api/stream.html">https://nodejs.org/api/stream.html</a>)</p>
+<p>Allows the user to keep a stream open the the Saito Endpoint for as long as it is authorized. The endpoint should close the connection automatically when authorization has ended.</p>
+<p>Typically wraps a Websocket connection to the endpoint.</p>
+<blockquote>
+<p><em>Note:</em></p>
+<p><em>If a Saito Endpoint author wishes to grant unlimited access to typical HTTP/REST endpoints for a given period of time it is recommended to create a call like Call(“RequestAuthorization”,...) and to add a signed challenge object to subsequent calls to the HTTP endpoints.</em></p>
+<p><em>For example, if a user has been granted 24 hours of access to a call to something like OnBalanceChange, this could be authorized via Call(“RequestAuthorization”,{pubkey: myPubkey}). Once authorized, subsequent calls to the endpoint would sign dated challenge tokens from the endpoint in order to gain HTTP/REST-style access to those endpoints.</em></p>
+</blockquote></article>
+    </section>
+
+
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AbstractCryptoModule.html">AbstractCryptoModule</a></li><li><a href="SubstrateBasedCrypto.html">SubstrateBasedCrypto</a></li><li><a href="Wallet.html">Wallet</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Wed May 05 2021 12:59:21 GMT+0800 (China Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

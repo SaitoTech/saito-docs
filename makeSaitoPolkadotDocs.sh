@@ -19,10 +19,10 @@ if [[ SAITOLITE ]]; then
 fi
 echo "Generating docs from '${SAITOLITE}' (use --saitolite to configure)"
 
-jsdoc --destination saitolitedocs/ \
+jsdoc --destination saitopolkadotdocs/ \
       ${SAITOLITE}/lib/templates/abstractcryptomodule.js \
       ${SAITOLITE}/lib/templates/substratebasedcrypto.js \
       ${SAITOLITE}/lib/saito/wallet.js \
-      ${SAITOLITE}/README.md
+      ${SAITOLITE}/docs/polkadot.md
       
-echo '#main .page-title {display: none}' >> saitolitedocs/styles/jsdoc-default.css
+echo '#main .page-title {display: none}' >> saitopolkadotdocs/styles/jsdoc-default.css
