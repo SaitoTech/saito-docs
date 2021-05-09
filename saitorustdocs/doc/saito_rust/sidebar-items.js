@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["block",""],["burnfee",""],["crypto",""],["helper",""],["hop",""],["mempool",""],["slip",""],["transaction",""]]});
+initSidebarItems({"mod":[["keypair",""]]});
