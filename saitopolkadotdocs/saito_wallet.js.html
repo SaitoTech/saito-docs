@@ -34,7 +34,7 @@ const AbstractCryptoModule = require('../templates/abstractcryptomodule')
 
 
 /**
- * Mempool Constructor
+ * A Saito-lite wallet.
  * @param {*} app
  */
 class Wallet {
@@ -99,7 +99,6 @@ class Wallet {
 	      if (this.app.wallet.wallet.inputs[i].ts >= timestamp) {
 		for (let ii = 0; ii &lt; this.app.wallet.wallet.inputs[i].from_slips.length; ii++) {
 		  if (this.app.wallet.wallet.inputs[i].from_slips[ii].add == from) {
-console.log("payment is in input list...");
  	            return 1; 
 	          }
 	        }
@@ -111,7 +110,6 @@ console.log("payment is in input list...");
 	      if (this.app.wallet.wallet.outputs[i].ts >= timestamp) {
 		for (let ii = 0; ii &lt; this.app.wallet.wallet.outputs[i].from_slips.length; ii++) {
 		  if (this.app.wallet.wallet.outputs[i].from_slips[ii].add == from) {
-console.log("payment is in output list...");
  	            return 1; 
 	          }
 	        }
@@ -252,7 +250,10 @@ console.log("payment is in output list...");
     return false;
   }
 
-
+  /**
+   * Initialize the Saito-Lite wallet
+   * @param {Object} app - Saito-Lite Application Context
+   */
   initialize(app) {
     if (this.wallet.privatekey == "") {
       if (this.app.options.wallet != null) {
@@ -803,7 +804,10 @@ console.log("---------------------------------------");
 
     return null;
   }
-
+  /**
+   * Calculates balance from slips in the local storage wallet
+   * @return {Big}
+   */
   calculateBalance() {
     let bal = Big(0);
      this.wallet.inputs.forEach((input, index )=> {
@@ -835,16 +839,24 @@ console.log("---------------------------------------");
   returnBalance() {
     return this.wallet.balance.replace(/0+$/,'').replace(/\.$/,'\.0');
   }
-
+  /**
+   * Returns Private key
+   * @return {String}
+   */
   returnPrivateKey() {
     return this.wallet.privatekey;
   }
+  /**
+   * Returns Public key
+   * @return {String}
+   */
   returnPublicKey() {
     return this.wallet.publickey;
   }
 
-
-
+  /**
+   * Serialized the user's wallet to JSON and downloads it to their local machine
+   */
   async backupWallet() {
     try {
       if (this.app.BROWSER == 1) {
@@ -862,7 +874,10 @@ console.log("---------------------------------------");
     }
   }
 
-
+  /**
+   * Generates a new keypair for the user, resets all stored wallet info, and saves
+   * the new wallet to local storage.
+   */
   async resetWallet() {
 
     //
@@ -897,17 +912,27 @@ console.log("---------------------------------------");
 
   }
 
-
+  /**
+   * Saves the current wallet state to local storage.
+   */
   saveWallet() {
     this.app.options.wallet = this.wallet;
     this.app.storage.saveOptions();
   }
-
-
+  
+  /**
+   * Sign an arbitrary message with wallet keypair
+   */
   signMessage(msg) {
     return this.app.crypto.signMessage(msg, this.returnPrivateKey());
   }
-
+  
+  /**
+   * If the to field of the transaction contains a pubkey which has previously negotiated a diffie-hellman
+   * key exchange, encrypt the message part of message, attach it to the transaction, and resign the transaction
+   * @param {Transaction}
+   * @return {Transaction}
+   */
   signAndEncryptTransaction(tx) {
 
     if (tx == null) { return null; }
@@ -940,6 +965,12 @@ console.log(err);
     return tx;
 
   }
+  
+  /**
+   * Sign a transactions and attach the sig to the transation
+   * @param {Transaction}
+   * @return {Transaction}
+   */
   signTransaction(tx) {
 
     if (tx == null) { return null; }
@@ -956,11 +987,11 @@ console.log(err);
       tx.transaction.m = this.app.crypto.stringToBase64(JSON.stringify(tx.msg));
       tx.transaction.sig = tx.returnSignature(this.app);
     } catch (err) {
-console.log("####################");
-console.log("### OVERSIZED TX ###");
-console.log("###   -revert-   ###");
-console.log("####################");
-console.log(err);
+      console.error("####################");
+      console.error("### OVERSIZED TX ###");
+      console.error("###   -revert-   ###");
+      console.error("####################");
+      console.error(err);
       tx.msg = {};
       return tx;
     }
@@ -1320,30 +1351,60 @@ console.log("---------------------");
   ///////////////////////
   // PREFERRED CRYPTOS //
   ///////////////////////
-  isOurPreferredCryptoAddress(address, ticker) {
 
-    if (address == this.returnPublicKey()) { return 1; }
-
-    return 0;
-
-  }
-
-
+  /**
+   * Returns a list of any modules installed in this Saito-Lite node which extend AbstractCryptoModule.
+   * AbstractCryptoModules represent various cryptocurrencies like DOT, Kusama, ETH, etc.
+   * @return {Array} Array of modules
+   */
   returnAvailableCryptos() {
     let cryptoModules = this.app.modules.returnModulesBySubType(AbstractCryptoModule);
     cryptoModules.push(this.saitoCrypo);
     return cryptoModules;
   }
-
-  returnPreferredCrypto() {
-    // TODO: Delete these three lines, they are a temporary fix needed to clean localstorage
-    if (this.wallet.preferred_crypto === "Polkadot" || this.wallet.preferred_crypto === "Kusama" || this.wallet.preferred_crypto === "Westend" || this.wallet.preferred_crypto === "Saito"){
-      this.setPreferredCrypto(this.saitoCrypo.ticker);
+  
+  /**
+   * Gets an installed AbstractCryptoModule by ticker
+   * @param {String} ticker - Ticker of install crypto module
+   * @return {Module}
+   */
+  returnCryptoModuleByTicker(ticker) {
+    let mods = this.returnAvailableCryptos();
+    for (let i = 0; i &lt; mods.length; i++) {
+      if (mods[i].ticker === ticker) { return mods[i]; }
     }
+    throw "Module Not Found: " + ticker;
+  }
+  /**
+   * Set user's preferred crypto module by ticker
+   * @param {String} ticker - Ticker of install crypto module
+   */
+  setPreferredCrypto(ticker) {
+    let can_we_do_this = 0;
+    let mods = this.returnAvailableCryptos();
+    for (let i = 0; i &lt; mods.length; i++) {
+      if (mods[i].ticker === ticker) { can_we_do_this = 1; }
+    }
+    if (ticker == "SAITO") { can_we_do_this = 1; }
+
+    if (can_we_do_this == 1) {
+      this.wallet.preferred_crypto = ticker;
+      this.saveWallet();
+      this.app.connection.emit("set_preferred_crypto", ticker);
+    }
+
+    return;
+  }
+  /**
+   * A user can set their preferred crypto within the Saito Lite environment. This will be stored
+   * in their local storage and can be retrieved by other modules here for any purpose.
+   * @return {Module}
+   */
+  returnPreferredCrypto() {
     try {
       return this.returnCryptoModuleByTicker(this.wallet.preferred_crypto);
     } catch(err) {
-      if(err.startsWith("Module Not Found:")) {
+      if (err.startsWith("Module Not Found:")) {
         this.setPreferredCrypto("SAITO");
         return this.returnCryptoModuleByTicker(this.wallet.preferred_crypto);
       } else {
@@ -1351,8 +1412,36 @@ console.log("---------------------");
       }
     }   
   }
-
+  returnPreferredCryptoTicker() {
+    try {
+      let pc = this.returnPreferredCrypto();
+      if (pc != null &amp;&amp; pc != undefined) {
+        return pc.ticker;
+      }
+    } catch (err) {
+      return "";
+    }
+  }
   
+  /**
+   * A user can set their preferred crypto within the Saito Lite environment. This will be stored
+   * in their local storage and can be retrieved by other modules here for any purpose.
+   * @param {String} address - How much of the token to transfer
+   * @param {String} to - Pubkey/address to send to
+   * @abstract
+   * @return {Int} Bool as int
+   */
+  isOurPreferredCryptoAddress(address, ticker) {
+    if (address == this.returnPublicKey()) { return 1; }
+    return 0;
+  }
+  /**
+   * Get's balance from user's preferred crypto module.
+   * @param {Array} addresses - Array of addresses
+   * @param {Function} mycallback - (Array of {address: {String}, balance: {Int}}) -> {...}
+   * @param {String} ticker - Ticker of install crypto module
+   * @return {Array} Array of {address: {String}, balance: {Int}}
+   */
   async returnPreferredCryptoBalances(addresses=[], mycallback=null, ticker="") {
     if (ticker == "") { ticker = this.wallet.preferred_crypto; }
     let cryptomod = this.returnCryptoModuleByTicker(ticker);
@@ -1365,69 +1454,19 @@ console.log("---------------------");
     for (let i = 0; i &lt; addresses.length; i++) {
       returnObj.push({address: addresses[i], balance: balances[i]});
     }
-    if (mycallback != null) { mycallback(robj); }
+    if (mycallback != null) { mycallback(returnObj); }
     return returnObj;
   }
-  //
-  // checks the balance available in the crypto module for the 
-  // address or addresses provided. mycallback and ticker are
-  // optional.
-  //
-  async returnPreferredCryptoBalance(addresses=[], mycallback=null, ticker="") {
-
-    //
-    // TODO - cleanup API once we're done so we don't need this kind
-    // of overloading in the function definition.
-    //
-    let preferred_crypto = ticker;
-    if (ticker == "") { preferred_crypto = this.wallet.preferred_crypto; }
-
-    //
-    // fetch desired module to do the heavy lifting
-    //
-    let cryptomod = this.returnCryptoModuleByTicker(preferred_crypto);
-
-    //
-    // create object to store results we will return
-    //
-    let robj = {};
-    robj.address = addresses;
-    robj.balance = [];
-    robj.status  = [];
-
-    let actively_querying_api = 0;
-
-    for (let i = 0; i &lt; robj.address.length; i++) {
-      robj.balance.push(0);
-      robj.status.push(0);
-    }
-
-    //
-    // API-balance-check loop
-    //
-    // this loop runs in perpetuity until it is able to check the balances for all of the 
-    // addresses provided. if an invalid address is provided or an error is provided we can
-    // edit this or the return object.
-    //
-    for (let i = 0; i &lt; robj.status.length; i++) {
-      if (robj.status[i] == 0) {
-        robj.balance[i] = await cryptomod.returnBalance(robj.address[i]);
-        robj.status[i] = 1;
-      }
-    }
-
-    let can_we_resolve = 1;
-    for (let i = 0; i &lt; robj.status.length; i++) {
-      if (robj.status[i] == 0) { can_we_resolve = 0; }
-    }
-
-    if (can_we_resolve == 1) {
-      if (mycallback != null) { mycallback(robj); }
-      return robj;
-    }
-
-  }
-
+  /**
+  * Sends payments to the addresses provided if this user is the corresponding 
+  * sender. Will not send if similar payment was found after the given timestamp.
+  * @param {Array} senders - Array of addresses
+  * @param {Array} receivers - Array of addresses
+  * @param {Array} amounts - Array of amounts to send
+  * @param {Int} timestamp - Timestamp of time after which payment should be made
+  * @param {Function} mycallback - ({hash: {String}}) -> {...}
+  * @param {String} ticker - Ticker of install crypto module
+  */
   async sendPayment(senders=[], receivers=[], amounts=[], timestamp, mycallback, ticker) {
     // validate inputs
     if(senders.length != receivers.length || senders.length != amounts.length) {
@@ -1467,14 +1506,21 @@ console.log("---------------------");
       mycallback({err: "already sent"});
     }
   };
-
+  /**
+   * Checks that a payment has been received if the current user is the receiver.
+   * @param {Array} senders - Array of addresses
+   * @param {Array} receivers - Array of addresses
+   * @param {Array} amounts - Array of amounts to send
+   * @param {Int} timestamp - Timestamp of time after which payment should be made
+   * @param {Function} mycallback - (Array of {address: {String}, balance: {Int}}) -> {...}
+   * @param {String} ticker - Ticker of install crypto module
+   * @param {Int} tries - (default: 36) Number of tries to query the underlying crypto API before giving up. Sending -1 will cause infinite retries.
+   * @param {Int} pollWaitTime - (default: 5000) Amount of time to wait between tries
+   * @return {Array} Array of {address: {String}, balance: {Int}}
+   */
   receivePayment(senders=[], receivers=[], amounts=[], timestamp, mycallback, ticker, tries = 36, pollWaitTime = 5000) {
 
-console.log("RECEIVE PAYMENT A");
-
-    return new Promise(async(resolve, reject) => {
-
-console.log("RECEIVE PAYMENT B");
+    return new Promise(async(resolve, reject) => {  
 
       if (senders.length != receivers.length || senders.length != amounts.length) {
         mycallback({err: "Lengths of senders, receivers, and amounts must be the same"});
@@ -1484,38 +1530,26 @@ console.log("RECEIVE PAYMENT B");
         mycallback({err: "Only supports one transaction"});
       }
 
-console.log("RECEIVE PAYMENT B+");
-
       //
       // if payment already receive, return
       //
       if (this.doesPreferredCryptoTransactionExist(senders, receivers, amounts, timestamp, ticker)) {
-console.log("RECEIVE PAYMENT C");
         mycallback();
       }
 
-console.log("PAST B+");
-
       let cryptomod = this.returnCryptoModuleByTicker(ticker);
-console.log("which cryptomod: " + cryptomod.name);
       await cryptomod.onIsInitialized();
-console.log("which cryptomod?");
       console.log("**** receivePayment ****");
       console.log("from " + senders[0]);
       console.log("to " + receivers[0]);
       console.log("me " + cryptomod.returnAddress());
 
-console.log("RECEIVE PAYMENT C+");
-
       //
       // create a function we can loop through to check if the payment has come in....
       //
       let check_payment_function = async() => {
-console.log("checkingpayment...");
         return await cryptomod.hasPayment(amounts[0]/1000, senders[0], receivers[0], timestamp[0]); 
       }
-
-console.log("RECEIVE PAYMENT D");
 
       let poll_check_payment_function = async() => {
         console.log("poll_check_payment_function remaining tries: " + tries);
@@ -1533,8 +1567,6 @@ console.log("RECEIVE PAYMENT D");
         did_complete_payment(result);
       };
 
-console.log("RECEIVE PAYMENT E");
-
       let did_complete_payment = (result) => {
         if (result) {
           // The transaction was found, we're done.
@@ -1544,7 +1576,8 @@ console.log("RECEIVE PAYMENT E");
         } else {
           // The transaction was not found.
           tries--;
-          if(tries > 0) {
+          // This is === rather than &lt; because sending -1 is a way to do infinite polling
+          if(tries === 0) {
             // if there are more tries left, re-poll after pollWaitTime
             setTimeout(() => {
               poll_check_payment_function();
@@ -1556,48 +1589,6 @@ console.log("RECEIVE PAYMENT E");
       }
       poll_check_payment_function();
     });
-    
-    //let has_payment_been_received = await check_payment_function();
-    
-    //
-    // now start a loop that checks this function, and executes the callback when payment is received
-    //
-    // let has_payment_been_received = await check_payment_function();
-    // if (!has_payment_been_received) {
-    //   let receive_payment_timer = setInterval(async () => {
-    // 
-    //     let inner_has_payment_been_received = await check_payment_function();
-    //     if (inner_has_payment_been_received) {
-    // 
-    //       //
-    //       // save the tx
-    //       //
-    //       this.savePreferredCryptoTransaction(senders, receivers, amounts, timestamp, ticker);
-    // 
-    //       //
-    //       // clear timer
-    //       //
-    //       clearInterval(receive_payment_timer);
-    // 
-    //       //
-    //       // and exit
-    //       //
-    // 
-    //       if (mycallback != null) { mycallback(); }
-    //         return 1;
-    //       }
-    // 
-    //   }, 5000);
-    // 
-    // } else {
-    // 
-    //   this.savePreferredCryptoTransaction(senders, receivers, amounts, timestamp, ticker);
-    // 
-    //   if (mycallback != null) { mycallback(); }
-    //   return 1;
-    // 
-    // }
-
   }
 
   savePreferredCryptoTransaction(senders=[], receivers=[], amounts, timestamp, ticker) {
@@ -1638,31 +1629,6 @@ console.log("RECEIVE PAYMENT E");
       }
     }
   }
-
-  returnCryptoModuleByTicker(ticker) {
-    let mods = this.returnAvailableCryptos();
-    for (let i = 0; i &lt; mods.length; i++) {
-      if (mods[i].ticker === ticker) { return mods[i]; }
-    }
-    throw "Module Not Found: " + ticker;
-  }
-
-  setPreferredCrypto(ticker) {
-    let can_we_do_this = 0;
-    let mods = this.returnAvailableCryptos();
-    for (let i = 0; i &lt; mods.length; i++) {
-      if (mods[i].ticker === ticker) { can_we_do_this = 1; }
-    }
-    if (ticker == "SAITO") { can_we_do_this = 1; }
-
-    if (can_we_do_this == 1) {
-      this.wallet.preferred_crypto = ticker;
-      this.saveWallet();
-      this.app.connection.emit("set_preferred_crypto", ticker);
-    }
-
-    return;
-  }
   ///////////////////////////
   // END PREFERRED CRYPTOS //
   ///////////////////////////
@@ -1686,7 +1652,7 @@ module.exports = Wallet;
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Wed May 05 2021 12:59:21 GMT+0800 (China Standard Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.6</a> on Mon May 17 2021 14:39:03 GMT+0800 (China Standard Time)
 </footer>
 
 <script> prettyPrint(); </script>
